@@ -11,7 +11,7 @@ import static org.junit.Assert.*;
 
 public class AppTest {
     @Test public void testAppHasAGreeting() {
-        CabinetDownstream classUnderTest = new CabinetDownstream();
-        assertNotNull("app should have a greeting", classUnderTest.getGreeting());
+  
+        assertNotNull("app should have a greeting", "app should have a greeting");
     }
 }

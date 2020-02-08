@@ -9,10 +9,13 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -78,8 +81,24 @@ public class CabinetDownstream extends MessageHandler{
 				RabbitmqCommandMessage<?> msg = (RabbitmqCommandMessage<?>) SerializationUtils.deserialize(delivery.getBody());
 				commands.get(msg.getCommand()).accept(msg);
 			};
+			DeliverCallback downStreamCallback = (consumerTag, delivery) -> {
+				
+				RabbitmqDicomMessage dicomMessage = (RabbitmqDicomMessage) SerializationUtils.deserialize(delivery.getBody());
+				
+				String _path = dicomPath + "/" + dicomMessage.getExplorationID();
+				Files.createDirectories( Paths.get(_path) );
+				String fileName = _path + "/" + dicomMessage.getFileName();
+				FileUtils.writeByteArrayToFile(new File(fileName), dicomMessage.getPayload());
+				
+				System.out.println(fileName);
+				
+				
+			};
+			
+			
 			channel.basicConsume(responceQueue, true, responceQueueCallback, consumerTag -> { });
 			
+			channel.basicConsume(downstreamQueue, true, downStreamCallback, consumerTag -> { });
 			
 		} catch (IOException e) {
 			logger.error("Error! IO Exception while declearing queue:  " + responceQueue + " with message: " + e.getMessage());
