@@ -5,17 +5,23 @@ package mibs.init.cabinet;
 
 
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -88,8 +94,23 @@ public class CabinetDownstream extends MessageHandler{
 				String _path = dicomPath + "/" + dicomMessage.getExplorationID();
 				Files.createDirectories( Paths.get(_path) );
 				String fileName = _path + "/" + dicomMessage.getFileName();
-				FileUtils.writeByteArrayToFile(new File(fileName), dicomMessage.getPayload());
+				//FileUtils.writeByteArrayToFile(new File(fileName), dicomMessage.getPayload());
 				
+				byte[] buffer = new byte[1024];
+				InputStream targetStream = new ByteArrayInputStream(dicomMessage.getPayload());
+				 
+				ZipInputStream zis = new ZipInputStream( targetStream );
+				ZipEntry zipEntry = zis.getNextEntry();
+				while (zipEntry != null) {
+			            File newFile = newFile( new File(_path),  zipEntry);
+			            FileOutputStream fos = new FileOutputStream(newFile);
+			        	IOUtils.copy( zis, fos );
+			   
+			            fos.close();
+			            zipEntry = zis.getNextEntry();
+			        }
+			        zis.closeEntry();
+			        zis.close();
 				System.out.println(fileName);
 				
 				
@@ -107,7 +128,18 @@ public class CabinetDownstream extends MessageHandler{
 		
 
 	}
-
+	private  File newFile(File destinationDir, ZipEntry zipEntry) throws IOException {
+	        File destFile = new File(destinationDir, zipEntry.getName());
+	         
+	        String destDirPath = destinationDir.getCanonicalPath();
+	        String destFilePath = destFile.getCanonicalPath();
+	         
+	        if (!destFilePath.startsWith(destDirPath + File.separator)) {
+	            throw new IOException("Entry is outside of the target dir: " + zipEntry.getName());
+	        }
+	         
+	        return destFile;
+	    }
     public static void main(String[] args) throws IOException, TimeoutException {
     	if (args.length > 0 && args[0].endsWith(".properties")) {
     		CabinetDownstream app = new CabinetDownstream( args[0] );
